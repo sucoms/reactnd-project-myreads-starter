@@ -1,68 +1,94 @@
-import React, {Component} from 'react';
+import React, { Component } from 'react';
+import { Link } from 'react-router-dom';
 import * as BooksAPI from './BooksAPI';
 import Book from './Book';
-import { Link } from 'react-router-dom';
 
 class SearchPage extends Component {
-	state = {
-		query: '',
-		searchedBooks: []
-	}
-	updateQuery = (query) => {
-		this.setState({
-			query: query
-		})
-		this.updateSearchedBooks(query);
-	}
 
-	updateSearchedBooks = (query) => {
-		if (query) {
-			BooksAPI.search(query).then((searchedBooks) => {
-			if (searchedBooks.error) {
-				this.setState({searchedBooks: [] });
-			} else {
-				this.setState({searchedBooks: searchedBooks});
-			}	
-		})
-		} else {
-			this.setState({searchedBooks: [] });
-		}
-	}
+    constructor () {
+        super();
+        this.state = {
+            query: '',
+            books: []
+        };
+    }
 
-	render (){
-		return (
-			<div className="search-books">
+       updateQuery = (query) => {
+           const { MainPageBooks } = this.props;
+
+           this.setState({ query: query });
+           const trimmedQuery = query.trim();
+           if (trimmedQuery === '') {
+           this.setState({ books: [] });
+                           return ;
+           }
+           BooksAPI.search(trimmedQuery, 5).then((response) => {
+             if (response.error || !response){
+               this.setState({ books: []})
+             }
+             else if (response && response.length) {
+               const books = response.map((book) => {
+                 const libBook = MainPageBooks.find((libBook) => libBook.id === book.id);
+                 const shelf = libBook ? libBook.shelf : 'none';
+                  return {
+                           id: book.id,
+                           shelf: shelf,
+                           authors: book.authors !== undefined ? book.authors : 'Author name not found',
+                           title: book.title !== undefined ? book.title : 'Book Title not found',
+
+                           imageLinks: {
+                                   thumbnail: book.imageLinks !== undefined  ? book.imageLinks.thumbnail : 'http://via.placeholder.com/128x193?text=No%20Cover'
+                           }
+
+                       };
+                   });
+                   this.setState({ books });
+               }
+           });
+       };
+    render () {
+        const { books } = this.state;
+        const { updateBookShelf } = this.props;
+
+        return(
+            <div className="search-books">
             <div className="search-books-bar">
-              <Link to="/" className="close-search" >Close</Link>
+              <Link
+                to="/"
+                className="close-search"
+              >
+              Close
+              </Link>
               <div className="search-books-input-wrapper">
-                <input type="text" placeholder="Search by title or author"
-                value={this.state.query}
-                onChange={(event) => this.updateQuery(event.target.value)}
+                <input
+                    type="text"
+                    placeholder="Search by title or author"
+                    onChange={ (event) => this.updateQuery(event.target.value) }
+                    value = { this.state.query }
                 />
               </div>
             </div>
             <div className="search-books-results">
               <ol className="books-grid">
-              	{this.state.searchedBooks.map(searchedBooks => {
-              		let shelf = "none";
-              		this.props.books.map(book => (
-              			book.id === searchedBooks.id ?
-              			shelf = book.shelf : ''
-              		))
-              		return (
-              			<li key={searchedBooks.id}>
-              				<Book book={searchedBooks} 
-              				movingShelves={this.props.movingShelves}
-              				currentShelf={shelf}/>
-              			</li>
-              		);
-              	})
-              	}
+                    {
+                        books.map((book) => (
+                            <li key={ book.id }>
+                                <Book
+                                    id={ book.id }
+                                    shelf={ book.shelf }
+                                    authors={ book.authors }
+                                    title={ book.title }
+                                    imageLinks={ book.imageLinks }
+                                    updateBookShelf={ updateBookShelf }
+                                />
+                            </li>
+                        ))
+                    }
               </ol>
             </div>
           </div>
-		);
-	}
+        );
+    }
 }
 
 export default SearchPage;
